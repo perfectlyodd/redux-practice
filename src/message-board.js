@@ -1,14 +1,23 @@
-import { createStore, combineReducers } from 'redux';
+import { createStore, combineReducers, applyMiddleware } from 'redux';
+import { get } from './http';
+import { createLogger } from 'redux-logger';
 
-const ONLINE = 'ONLINE'; 
-const AWAY = 'AWAY';
-const OFFLINE = 'OFFLINE';
-const BUSY = 'BUSY';
+/* Status action constants */
+export const ONLINE = 'ONLINE'; 
+export const AWAY = 'AWAY';
+export const OFFLINE = 'OFFLINE';
+export const BUSY = 'BUSY';
 
-const UPDATE_STATUS = "UPDATE_STATUS";
-const CREATE_NEW_MESSAGE = "CREATE_NEW_MESSAGE";
+/* Message action constants */
+export const UPDATE_STATUS = "UPDATE_STATUS";
+export const CREATE_NEW_MESSAGE = "CREATE_NEW_MESSAGE";
 
-const statusUpdateAction = (val) => {
+/* Network communication status constants */
+export const READY = "READY";
+export const WAITING = "WAITING";
+export const NEW_MESSAGE_SERVER_ACCEPTED = "NEW_MESSAGE_SERVER_ACCEPTED";
+
+export const statusUpdateAction = (val) => {
     return {
         type: UPDATE_STATUS,
         value: val                                      // TODO: Add error-checking
@@ -17,6 +26,13 @@ const statusUpdateAction = (val) => {
 
 const newMessageAction = (content, postedBy) => {
     const date = new Date();
+
+    get('/api/create-message', (id) => {
+        store.dispatch({
+            type: NEW_MESSAGE_SERVER_ACCEPTED
+        });
+    });
+
     return {
         type: CREATE_NEW_MESSAGE,
         value: content,
@@ -43,7 +59,8 @@ const defaultState = {
             content: 'Media covfefe of Singapore has been tremendous!!!'
         }
     ],
-    userStatus: ONLINE
+    userStatus: ONLINE,
+    networkCommunicationStatus: READY
 }
 
 
@@ -72,15 +89,32 @@ const messageReducer = (state = defaultState.messages, {type, value, postedBy, d
     return state;
 };
 
+const networkCommunicationStatusReducer = 
+    (state = defaultState.networkCommunicationStatus, {type}) => {
+    switch(type) {
+        case CREATE_NEW_MESSAGE:
+            return WAITING;
+            break;
+        case NEW_MESSAGE_SERVER_ACCEPTED:
+            return READY;
+            break;
+    }
+    return state;
+}
+
 const globalReducer = combineReducers({
     userStatus: statusReducer,
-    messages: messageReducer
+    messages: messageReducer,
+    networkCommunicationStatus: networkCommunicationStatusReducer
 });
 
-const store = createStore(globalReducer);
+const store = createStore(
+    globalReducer, 
+    applyMiddleware(createLogger())
+);
 
 const render = () => {
-    const { messages, userStatus } = store.getState();
+    const { messages, userStatus, networkCommunicationStatus } = store.getState();
     document.getElementById("messages").innerHTML = messages
         .sort((a, b) => b.date - a.date)                        // Sorts messages in chronological order
         .map(message => (`                                      
@@ -89,7 +123,8 @@ const render = () => {
             </div>
         `)).join("");
 
-    document.forms.newMessage.fields.disabled = (userStatus === OFFLINE);
+    document.forms.newMessage.fields.disabled = 
+        (userStatus === OFFLINE || networkCommunicationStatus === WAITING);
     document.forms.newMessage.newMessage.value = "";
 }
 
@@ -110,3 +145,10 @@ document.forms.newMessage.addEventListener("submit", (e) => {
 render();
 
 store.subscribe(render);
+
+
+/* Test code for HTTP async mock: */
+console.log("Sending mock HTTP request");
+get('http://someurl.com', (id) => {
+    console.log(`Callback returned id = ${id}`);
+});
