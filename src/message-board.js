@@ -1,4 +1,4 @@
-import { createStore } from 'redux';
+import { createStore, combineReducers } from 'redux';
 
 const ONLINE = 'ONLINE'; 
 const AWAY = 'AWAY';
@@ -6,11 +6,22 @@ const OFFLINE = 'OFFLINE';
 const BUSY = 'BUSY';
 
 const UPDATE_STATUS = "UPDATE_STATUS";
+const CREATE_NEW_MESSAGE = "CREATE_NEW_MESSAGE";
 
 const statusUpdateAction = (val) => {
     return {
         type: UPDATE_STATUS,
         value: val                                      // TODO: Add error-checking
+    }
+}
+
+const newMessageAction = (content, postedBy) => {
+    const date = new Date();
+    return {
+        type: CREATE_NEW_MESSAGE,
+        value: content,
+        postedBy,
+        date
     }
 }
 
@@ -35,16 +46,38 @@ const defaultState = {
     userStatus: ONLINE
 }
 
-const globablReducer = (state = defaultState, {type, value}) => {
+
+const statusReducer = (state = defaultState.userStatus, {type, value}) => {
     switch(type) {
         case UPDATE_STATUS:
-            return {...state, userStatus: value};
+            return value;
             break;
     }
     return state;
-}
+};
 
-const store = createStore(globablReducer);
+const messageReducer = (state = defaultState.messages, {type, value, postedBy, date}) => {
+    switch(type) {
+        case CREATE_NEW_MESSAGE:
+            const newState = [
+                {
+                    date: date, 
+                    postedBy: postedBy, 
+                    content: value
+                }, 
+                ...state];
+            return newState;
+            break;
+    }
+    return state;
+};
+
+const globalReducer = combineReducers({
+    userStatus: statusReducer,
+    messages: messageReducer
+});
+
+const store = createStore(globalReducer);
 
 const render = () => {
     const { messages, userStatus } = store.getState();
@@ -57,12 +90,21 @@ const render = () => {
         `)).join("");
 
     document.forms.newMessage.fields.disabled = (userStatus === OFFLINE)
+    document.forms.newMessage.newMessage.value = "";
 }
 
 document.forms.selectStatus.status.addEventListener("change", (e) => {
     store.dispatch(
         statusUpdateAction(e.target.value)
     );
+});
+
+document.forms.newMessage.addEventListener("submit", (e) => {
+    e.preventDefault();
+        // Prevents page reloading
+    const value = e.target.newMessage.value;
+    const username = localStorage["preferences"] ? JSON.parse(localStorage["preferences"]).userName : "Jimbo Wales";
+    store.dispatch(newMessageAction(value, username));
 });
 
 render();
