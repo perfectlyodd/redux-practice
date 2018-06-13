@@ -5,6 +5,15 @@ const AWAY = 'AWAY';
 const OFFLINE = 'OFFLINE';
 const BUSY = 'BUSY';
 
+const UPDATE_STATUS = "UPDATE_STATUS";
+
+const statusUpdateAction = (val) => {
+    return {
+        type: UPDATE_STATUS,
+        value: val                                      // TODO: Add error-checking
+    }
+}
+
 const defaultState = {
     messages: [
         {
@@ -26,10 +35,16 @@ const defaultState = {
     userStatus: ONLINE
 }
 
-
-const store = createStore((state = defaultState) => {
+const globablReducer = (state = defaultState, {type, value}) => {
+    switch(type) {
+        case UPDATE_STATUS:
+            return {...state, userStatus: value};
+            break;
+    }
     return state;
-});
+}
+
+const store = createStore(globablReducer);
 
 const render = () => {
     const { messages, userStatus } = store.getState();
@@ -40,6 +55,16 @@ const render = () => {
                 ${message.postedBy} : ${message.content}
             </div>
         `)).join("");
+
+    document.forms.newMessage.fields.disabled = (userStatus === OFFLINE)
 }
 
+document.forms.selectStatus.status.addEventListener("change", (e) => {
+    store.dispatch(
+        statusUpdateAction(e.target.value)
+    );
+});
+
 render();
+
+store.subscribe(render);
