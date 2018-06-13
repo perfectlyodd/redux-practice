@@ -89,7 +89,7 @@ const render = () => {
             </div>
         `)).join("");
 
-    document.forms.newMessage.fields.disabled = (userStatus === OFFLINE)
+    document.forms.newMessage.fields.disabled = (userStatus === OFFLINE);
     document.forms.newMessage.newMessage.value = "";
 }
 
